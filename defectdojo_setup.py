@@ -1,52 +1,79 @@
+name: DevSecOps CI/CD with DefectDojo
 
-import requests
-import os
+on:
+  push:
+    branches: [ main ]
+  pull_request:
 
-DD_URL = os.environ["DEFECTDOJO_URL"]
-DD_TOKEN = os.environ["DEFECTDOJO_TOKEN"]
-PRODUCT_NAME = os.environ["PRODUCT_NAME"]
-ENGAGEMENT_NAME = os.environ["ENGAGEMENT_NAME"]
+jobs:
+  security-pipeline:
+    runs-on: ubuntu-latest
 
-headers = {"Authorization": f"Token {DD_TOKEN}"}
+    steps:
+    # 1️⃣ Checkout du code
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-# --------------- PRODUCT ----------------
-product_search = requests.get(
-    f"{DD_URL}/api/v2/products/?name={PRODUCT_NAME}",
-    headers=headers
-).json()
+    # 2️⃣ Installer Python pour uploader les scans (si besoin)
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
 
-if product_search["count"] > 0:
-    product_id = product_search["results"][0]["id"]
-else:
-    create = requests.post(
-        f"{DD_URL}/api/v2/products/",
-        headers=headers,
-        json={"name": PRODUCT_NAME, "description": "Auto CI/CD Product"}
-    ).json()
-    product_id = create["id"]
+    - name: Install Python dependencies
+      run: pip install requests semgrep
 
-# --------------- ENGAGEMENT ----------------
-engagement_search = requests.get(
-    f"{DD_URL}/api/v2/engagements/?name={ENGAGEMENT_NAME}&product={product_id}",
-    headers=headers
-).json()
+    # 3️⃣ Définir les IDs fixes de produit et engagement
+    - name: Set DefectDojo IDs
+      run: |
+        echo "export PRODUCT_ID=1" >> $GITHUB_ENV
+        echo "export ENGAGEMENT_ID=1" >> $GITHUB_ENV
 
-if engagement_search["count"] > 0:
-    engagement_id = engagement_search["results"][0]["id"]
-else:
-    create = requests.post(
-        f"{DD_URL}/api/v2/engagements/",
-        headers=headers,
-        json={
-            "name": ENGAGEMENT_NAME,
-            "product": product_id,
-            "status": "In Progress",
-            "engagement_type": "CI/CD"
-        }
-    ).json()
-    engagement_id = create["id"]
+    # 4️⃣ Installer Node pour Juice Shop
+    - name: Set up Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: "18"
 
-PRODUCT_ID = 1        # ID du produit existant dans DefectDojo
-ENGAGEMENT_ID = 1     # ID de l'engagement existant
-print(f"export PRODUCT_ID={product_id}")
-print(f"export ENGAGEMENT_ID={engagement_id}")
+    - name: Install dependencies
+      run: npm install
+
+    # 5️⃣ Exécuter SAST (Semgrep)
+    - name: Run Semgrep SAST
+      run: semgrep --config=auto --json --output semgrep_results.json
+
+    # 6️⃣ Exécuter SCA (npm audit)
+    - name: Run npm audit
+      run: npm audit --json > npm_audit.json
+
+    # 7️⃣ Exécuter DAST (ZAP)
+    - name: Start Juice Shop server
+      run: npm start & sleep 20
+
+    - name: Run ZAP Scan
+      uses: zaproxy/action-full-scan@v0.7.0
+      with:
+        target: "http://localhost:3000"
+        format: "json"
+        output: "zap_result.json"
+
+    # 8️⃣ Upload des scans vers DefectDojo
+    - name: Upload scans to DefectDojo
+      env:
+        DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+        DEFECTDOJO_TOKEN: ${{ secrets.DEFECTDOJO_TOKEN }}
+      run: |
+        for item in \
+          "semgrep_results.json:Semgrep JSON Report" \
+          "npm_audit.json:NPM Audit JSON" \
+          "zap_result.json:ZAP Scan"; do
+
+          FILE=${item%%:*}
+          TYPE=${item##*:}
+
+          curl -X POST "$DEFECTDOJO_URL/api/v2/import-scan/" \
+            -H "Authorization: Token $DEFECTDOJO_TOKEN" \
+            -F "scan_type=$TYPE" \
+            -F "file=@$FILE" \
+            -F "engagement=$ENGAGEMENT_ID"
+        done
