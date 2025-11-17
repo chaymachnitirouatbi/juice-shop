@@ -64,8 +64,7 @@ jobs:
         format: "json"
         output: "zap_result.json"
         allow_issue_writing: false
-        cmd_options: "-silent"
-        artifact_name: "zap-scan"
+        cmd_options: "-l WARN -s"
 
     # 9️⃣ Envoi vers DefectDojo
     - name: Upload scans to DefectDojo
