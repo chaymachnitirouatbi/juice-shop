@@ -63,6 +63,8 @@ jobs:
         target: "http://localhost:3000"
         format: "json"
         output: "zap_result.json"
+        allow_issue_writing: false
+
 
     # 9️⃣ Upload des scans vers DefectDojo
     - name: Upload scans to DefectDojo
