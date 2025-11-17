@@ -14,7 +14,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # 2️⃣ Installer Python pour uploader les scans
+    # 2️⃣ Installer Python
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -23,11 +23,11 @@ jobs:
     - name: Install Python dependencies
       run: pip install requests semgrep
 
-    # 3️⃣ Définir les IDs fixes de produit et engagement (demo publique)
+    # 3️⃣ Définir les IDs DefectDojo
     - name: Set DefectDojo IDs
       run: |
-        echo "export PRODUCT_ID=5" >> $GITHUB_ENV
-        echo "export ENGAGEMENT_ID=17" >> $GITHUB_ENV
+        echo "PRODUCT_ID=5" >> $GITHUB_ENV
+        echo "ENGAGEMENT_ID=17" >> $GITHUB_ENV
 
     # 4️⃣ Installer Node.js
     - name: Set up Node.js
@@ -35,7 +35,7 @@ jobs:
       with:
         node-version: "22.12"
 
-    # 5️⃣ Build Juice Shop (frontend + serveur)
+    # 5️⃣ Build Juice Shop
     - name: Install dependencies & build
       run: |
         cd frontend
@@ -64,13 +64,15 @@ jobs:
         format: "json"
         output: "zap_result.json"
         allow_issue_writing: false
+        cmd_options: "-silent"
+        artifact_name: "zap-scan"
 
-
-    # 9️⃣ Upload des scans vers DefectDojo
+    # 9️⃣ Envoi vers DefectDojo
     - name: Upload scans to DefectDojo
       env:
         DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
         DEFECTDOJO_TOKEN: ${{ secrets.DEFECTDOJO_TOKEN }}
+        ENGAGEMENT_ID: ${{ env.ENGAGEMENT_ID }}
       run: |
         for item in \
           "semgrep_results.json:Semgrep JSON Report" \
@@ -80,9 +82,30 @@ jobs:
           FILE=${item%%:*}
           TYPE=${item##*:}
 
+          echo "Uploading $FILE to DefectDojo as $TYPE..."
+
           curl -X POST "$DEFECTDOJO_URL/api/v2/import-scan/" \
             -H "Authorization: Token $DEFECTDOJO_TOKEN" \
             -F "scan_type=$TYPE" \
             -F "file=@$FILE" \
             -F "engagement=$ENGAGEMENT_ID"
         done
+
+    # 🔟 Upload artifacts
+    - name: Upload Semgrep results
+      uses: actions/upload-artifact@v4
+      with:
+        name: semgrep-results
+        path: semgrep_results.json
+
+    - name: Upload npm audit results
+      uses: actions/upload-artifact@v4
+      with:
+        name: npm-audit
+        path: npm_audit.json
+
+    - name: Upload ZAP results
+      uses: actions/upload-artifact@v4
+      with:
+        name: zap-scan
+        path: zap_result.json
