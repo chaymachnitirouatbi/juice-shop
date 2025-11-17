@@ -1,1 +1,83 @@
+name: DevSecOps CI/CD with DefectDojo
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  security-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+
+    - name: Install Python deps
+      run: pip install requests semgrep
+
+    # -------- Create Product + Engagement via DefectDojo API ----------
+    - name: Create Product & Engagement
+      env:
+        DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+        DEFECTDOJO_TOKEN: ${{ secrets.DEFECTDOJO_TOKEN }}
+        PRODUCT_NAME: Juice-Shop-CI
+        ENGAGEMENT_NAME: Auto-CI-Engagement
+      run: |
+        python defectdojo_setup.py > env.txt
+        cat env.txt
+        source env.txt
+
+    # ---------------- SAST : Semgrep ----------------
+    - name: Run Semgrep SAST
+      run: semgrep --config=auto --json --output semgrep_results.json
+
+    # ---------------- SCA : npm audit ----------------
+    - name: Install Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: "18"
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run NPM Audit
+      run: npm audit --json > npm_audit.json
+
+    # ---------------- DAST : ZAP ----------------
+    - name: Start Juice Shop server
+      run: npm start & sleep 20
+
+    - name: Run ZAP Scan
+      uses: zaproxy/action-full-scan@v0.7.0
+      with:
+        target: "http://localhost:3000"
+        format: "json"
+        output: "zap_result.json"
+
+    # ---------------- Upload Results to DefectDojo ----------------
+    - name: Upload to DefectDojo
+      env:
+        DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+        DEFECTDOJO_TOKEN: ${{ secrets.DEFECTDOJO_TOKEN }}
+      run: |
+        for item in \
+          "semgrep_results.json:Semgrep JSON Report" \
+          "npm_audit.json:NPM Audit JSON" \
+          "zap_result.json:ZAP Scan"; do
+        
+          FILE=${item%%:*}
+          TYPE=${item##*:}
+
+          curl -X POST "$DEFECTDOJO_URL/api/v2/import-scan/" \
+            -H "Authorization: Token $DEFECTDOJO_TOKEN" \
+            -F "scan_type=$TYPE" \
+            -F "file=@$FILE" \
+            -F "engagement=$ENGAGEMENT_ID"
+        done
 
