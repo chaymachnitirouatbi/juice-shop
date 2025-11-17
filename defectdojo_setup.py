@@ -46,5 +46,7 @@ else:
     ).json()
     engagement_id = create["id"]
 
+PRODUCT_ID = 1        # ID du produit existant dans DefectDojo
+ENGAGEMENT_ID = 1     # ID de l'engagement existant
 print(f"export PRODUCT_ID={product_id}")
 print(f"export ENGAGEMENT_ID={engagement_id}")
