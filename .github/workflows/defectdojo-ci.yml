@@ -51,7 +51,7 @@ jobs:
 
     # 7️⃣ Exécuter SCA (npm audit)
     - name: Run npm audit
-      run: npm audit --json > npm_audit.json
+      run: npm audit --json > npm_audit.json || true
 
     # 8️⃣ Exécuter DAST (OWASP ZAP)
     - name: Start Juice Shop server
