@@ -53,21 +53,6 @@ jobs:
     - name: Run npm audit
       run: npm audit --json > npm_audit.json || true
 
-    # 8️⃣ Exécuter DAST (OWASP ZAP via Docker) — plus d’action qui bug
-    - name: Start Juice Shop server
-      run: npm start & sleep 20
-
-    - name: Run ZAP Full Scan (Docker)
-      run: |
-        docker pull ghcr.io/zaproxy/zaproxy:stable
-        docker run --network=host \
-          -v $(pwd):/zap/wrk/ \
-          ghcr.io/zaproxy/zaproxy:stable \
-          zap-full-scan.py \
-            -t http://localhost:3000 \
-            -J zap_result.json \
-            -l WARN -s || true
-
     # 9️⃣ Envoi vers DefectDojo
     - name: Upload scans to DefectDojo
       env:
