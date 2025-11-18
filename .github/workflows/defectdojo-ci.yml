@@ -26,8 +26,8 @@ jobs:
     # 3️⃣ Définir les IDs DefectDojo
     - name: Set DefectDojo IDs
       run: |
-        echo "PRODUCT_ID=5" >> $GITHUB_ENV
-        echo "ENGAGEMENT_ID=17" >> $GITHUB_ENV
+        echo "PRODUCT_ID=6" >> $GITHUB_ENV
+        echo "ENGAGEMENT_ID=16" >> $GITHUB_ENV
 
     # 4️⃣ Installer Node.js
     - name: Set up Node.js
