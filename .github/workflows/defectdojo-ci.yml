@@ -62,9 +62,8 @@ jobs:
       run: |
         for item in \
           "semgrep_results.json:Semgrep JSON Report" \
-          "npm_audit.json:NPM Audit JSON" \
-
-
+          "npm_audit.json:Npm Audit" \
+        ; do
           FILE=${item%%:*}
           TYPE=${item##*:}
 
@@ -89,5 +88,3 @@ jobs:
       with:
         name: npm-audit
         path: npm_audit.json
-
-
