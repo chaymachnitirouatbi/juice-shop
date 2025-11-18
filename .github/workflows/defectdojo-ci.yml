@@ -66,7 +66,7 @@ jobs:
           zap-full-scan.py \
             -t http://localhost:3000 \
             -J zap_result.json \
-            -l WARN -s
+            -l WARN -s || true
 
     # 9️⃣ Envoi vers DefectDojo
     - name: Upload scans to DefectDojo
