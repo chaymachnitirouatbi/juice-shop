@@ -63,7 +63,7 @@ jobs:
         for item in \
           "semgrep_results.json:Semgrep JSON Report" \
           "npm_audit.json:NPM Audit JSON" \
-          "zap_result.json:ZAP Scan"; do
+
 
           FILE=${item%%:*}
           TYPE=${item##*:}
@@ -90,8 +90,4 @@ jobs:
         name: npm-audit
         path: npm_audit.json
 
-    - name: Upload ZAP results
-      uses: actions/upload-artifact@v4
-      with:
-        name: zap-scan
-        path: zap_result.json
+
